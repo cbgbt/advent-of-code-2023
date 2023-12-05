@@ -3,6 +3,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use std::convert::Infallible;
 use std::str::FromStr;
+use std::time::Instant;
 
 const INPUT: &str = include_str!("input.dat");
 const SAMPLE: &str = include_str!("sample.dat");
@@ -184,31 +185,130 @@ impl FromStr for Map {
     }
 }
 
-// mod pt1 {
-//     use super::*;
-//
-//     pub fn pt1() {
-//         let almanac: Almanac = INPUT.parse().unwrap();
-//
-//         let result = almanac
-//             .seeds
-//             .par_iter()
-//             .map(|seed| {
-//                 let seed = seed.clone();
-//                 let soil = find_mapping(seed, &almanac.seed_to_soil);
-//                 let fertilizer = find_mapping(soil, &almanac.soil_to_fertilizer);
-//                 let water = find_mapping(fertilizer, &almanac.fertilizer_to_water);
-//                 let light = find_mapping(water, &almanac.water_to_light);
-//                 let temperature = find_mapping(light, &almanac.light_to_temperature);
-//                 let humidity = find_mapping(temperature, &almanac.temperature_to_humidity);
-//                 find_mapping(humidity, &almanac.humidity_to_location)
-//             })
-//             .min()
-//             .unwrap();
-//
-//         println!("{}", result);
-//     }
-// }
+mod pt1 {
+    use super::{find_mapping, Map, INPUT};
+    use rayon::prelude::*;
+    use std::convert::Infallible;
+    use std::str::FromStr;
+
+    // Part1 Almanac replicated here, since the definition changed for part 2
+    #[derive(Debug)]
+    struct Almanac {
+        seeds: Vec<u64>,
+        seed_to_soil: Vec<Map>,
+        soil_to_fertilizer: Vec<Map>,
+        fertilizer_to_water: Vec<Map>,
+        water_to_light: Vec<Map>,
+        light_to_temperature: Vec<Map>,
+        temperature_to_humidity: Vec<Map>,
+        humidity_to_location: Vec<Map>,
+    }
+
+    impl Almanac {
+        fn consume_maps(lines: &mut std::str::Lines) -> Vec<Map> {
+            let mut maps = Vec::new();
+
+            loop {
+                if let Some(line) = lines.next() {
+                    if line.is_empty() {
+                        break;
+                    }
+
+                    maps.push(line.parse().unwrap());
+                } else {
+                    break;
+                }
+            }
+
+            maps
+        }
+
+        fn skip_two_lines(lines: &mut std::str::Lines) {
+            lines.next();
+            lines.next();
+        }
+    }
+
+    impl FromStr for Almanac {
+        type Err = Infallible;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let mut lines = s.lines();
+
+            let mut seeds: Vec<u64> = lines
+                .next()
+                .unwrap()
+                .split(':')
+                .last()
+                .unwrap()
+                .trim()
+                .split_ascii_whitespace()
+                .map(|s| s.parse::<u64>().unwrap())
+                .collect();
+
+            Almanac::skip_two_lines(&mut lines);
+            let mut seed_to_soil = Almanac::consume_maps(&mut lines);
+            seed_to_soil.sort_by_key(|m| m.dst_range_start);
+
+            lines.next();
+            let mut soil_to_fertilizer = Almanac::consume_maps(&mut lines);
+            soil_to_fertilizer.sort_by_key(|m| m.dst_range_start);
+
+            lines.next();
+            let mut fertilizer_to_water = Almanac::consume_maps(&mut lines);
+            fertilizer_to_water.sort_by_key(|m| m.dst_range_start);
+
+            lines.next();
+            let mut water_to_light = Almanac::consume_maps(&mut lines);
+            water_to_light.sort_by_key(|m| m.dst_range_start);
+
+            lines.next();
+            let mut light_to_temperature = Almanac::consume_maps(&mut lines);
+            light_to_temperature.sort_by_key(|m| m.dst_range_start);
+
+            lines.next();
+            let mut temperature_to_humidity = Almanac::consume_maps(&mut lines);
+            temperature_to_humidity.sort_by_key(|m| m.dst_range_start);
+
+            lines.next();
+            let mut humidity_to_location = Almanac::consume_maps(&mut lines);
+            humidity_to_location.sort_by_key(|m| m.dst_range_start);
+
+            Ok(Almanac {
+                seeds,
+                seed_to_soil,
+                soil_to_fertilizer,
+                fertilizer_to_water,
+                water_to_light,
+                light_to_temperature,
+                temperature_to_humidity,
+                humidity_to_location,
+            })
+        }
+    }
+
+    pub fn pt1() {
+        let almanac: Almanac = INPUT.parse().unwrap();
+
+        let result = almanac
+            .seeds
+            .par_iter()
+            .map(|seed| {
+                let seed = seed.clone();
+                let soil = find_mapping(seed, &almanac.seed_to_soil);
+                let fertilizer = find_mapping(soil, &almanac.soil_to_fertilizer);
+                let water = find_mapping(fertilizer, &almanac.fertilizer_to_water);
+                let light = find_mapping(water, &almanac.water_to_light);
+                let temperature = find_mapping(light, &almanac.light_to_temperature);
+                let humidity = find_mapping(temperature, &almanac.temperature_to_humidity);
+                find_mapping(humidity, &almanac.humidity_to_location)
+            })
+            .min()
+            .unwrap();
+
+        println!("{}", result);
+    }
+}
 
 mod pt2 {
     use super::*;
@@ -243,8 +343,10 @@ mod pt2 {
 }
 
 fn main() {
-    // println!("Part 1:");
-    // pt1::pt1();
+    println!("Part 1:");
+    pt1::pt1();
+    let before = Instant::now();
     println!("Part 2:");
     pt2::pt2();
+    println!("Part 2 took {:.2?}", before.elapsed());
 }
