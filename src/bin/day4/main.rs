@@ -6,6 +6,7 @@ use std::convert::Infallible;
 use std::str::FromStr;
 
 const INPUT: &str = include_str!("input.dat");
+#[allow(dead_code)]
 const SAMPLE: &str = include_str!("sample.dat");
 
 lazy_static! {
@@ -92,11 +93,8 @@ mod pt2 {
     use super::*;
 
     impl Game {
-        fn get_next_games<'a>(&self, games: &'a Vec<Game>) -> Vec<&'a Game> {
-            let fits_both = self.winners.intersection(&self.actual);
-            let num_matches = fits_both.count() as u32;
-
-            (0..num_matches)
+        fn get_next_games<'a>(&self, games: &'a [Game]) -> Vec<&'a Game> {
+            (0..self.num_winners())
                 .map(|i| &games[(self.id + i) as usize])
                 .collect()
         }
