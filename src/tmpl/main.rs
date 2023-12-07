@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 const INPUT: &str = include_str!("input.dat");
 #[allow(dead_code)]
-const SAMPLE: &str = include_str!("input.dat");
+const SAMPLE: &str = include_str!("sample.dat");
 
 lazy_static! {
     static ref EXAMPLE: Regex = Regex::new(r"example").unwrap();
