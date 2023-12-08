@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 lazy_static = "1"
+num = "0.4"
 regex = "1"
 rayon = "1"
