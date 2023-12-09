@@ -64,10 +64,6 @@ const INPUT: &str = include_str!("input.dat");
 #[allow(dead_code)]
 const SAMPLE: &str = include_str!("sample.dat");
 
-lazy_static! {
-    static ref EXAMPLE: Regex = Regex::new(r"example").unwrap();
-}
-
 pub fn pt2() {
     let puzzles = INPUT.lines().map(|l| l.parse::<Puzzle>().unwrap());
     let result: i64 = puzzles.map(|p| p.find_extrapolated_value()).sum();
