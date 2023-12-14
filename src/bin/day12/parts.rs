@@ -1,4 +1,5 @@
 use super::*;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::Regex;
@@ -11,30 +12,9 @@ struct Map {
     lines: Vec<SpringLine>,
 }
 
-impl Map {
-    fn from_folded(s: &str) -> Self {
-        let lines = s
-            .lines()
-            .map(|line| {
-                let mut type_split = line.split_ascii_whitespace();
-                let springs: String = type_split.next().unwrap().chars().collect();
-                let springs = format!("{0}?{0}?{0}?{0}?{0}", springs).chars().collect();
-
-                let groups = type_split.next().unwrap();
-                let groups = format!("{0},{0},{0},{0},{0}", groups);
-
-                let groups = groups.split(',').map(|s| s.parse().unwrap()).collect();
-                SpringLine { springs, groups }
-            })
-            .collect();
-
-        Map { lines }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 struct SpringLine {
-    springs: Vec<char>,
+    springs: String,
     groups: Vec<usize>,
 }
 
@@ -42,7 +22,7 @@ impl ToString for SpringLine {
     fn to_string(&self) -> String {
         format!(
             "{} {}",
-            self.springs.iter().collect::<String>(),
+            self.springs,
             self.groups
                 .iter()
                 .map(|i| i.to_string())
@@ -53,76 +33,78 @@ impl ToString for SpringLine {
 }
 
 impl SpringLine {
-    fn group_sizes(spring_line: &str) -> Vec<usize> {
-        spring_line
-            .split('.')
-            .filter(|s| !s.is_empty())
-            .map(|s| s.len())
-            .collect()
-    }
+    fn num_arrangements(&self, memoize: &mut HashMap<SpringLine, usize>) -> usize {
+        if memoize.contains_key(&self) {
+            return memoize[&self];
+        }
 
-    fn evaluate_line(spring_line: &str, groups: &[usize]) -> bool {
-        let group_sizes = Self::group_sizes(spring_line);
-        group_sizes.len() == groups.len() && group_sizes.iter().zip(groups).all(|(a, b)| a == b)
-    }
+        // If there are no springs but groups, we don't match
+        if !self.groups.is_empty() && self.springs.len() < *self.groups.iter().next().unwrap() {
+            return 0;
+        }
 
-    fn should_evaluate(spring_line: &str, groups: &[usize]) -> bool {
-        let curr_front_groups = spring_line.split('?').next().unwrap();
-        let curr_front_groups: Vec<usize> = curr_front_groups
-            .split('.')
-            .filter(|s| !s.is_empty())
-            .map(|s| s.len())
-            .collect();
-
-        curr_front_groups
-            .iter()
-            .enumerate()
-            .zip(groups.iter())
-            .all(|((ndx, a), b)| {
-                if ndx == (curr_front_groups.len() - 1) {
-                    *a <= *b
-                } else {
-                    *a == *b
-                }
-            })
-    }
-
-    fn num_arrangements(&self) -> usize {
-        let mut sum = 0;
-        let mut queue: VecDeque<String> = [self.springs.clone().into_iter().collect()]
-            .into_iter()
-            .collect();
-
-        while !queue.is_empty() {
-            let spring_line = queue.pop_front().unwrap();
-            if !spring_line.contains('?') {
-                if Self::evaluate_line(&spring_line, &self.groups) {
-                    sum += 1;
-                }
+        // If there are no more groups left, all ? must be .
+        if self.groups.is_empty() {
+            if self.springs.contains('#') {
+                return 0;
             } else {
-                if let Some(ndx) = spring_line.find('?') {
-                    let mut new_line = spring_line.clone();
-                    new_line.replace_range(ndx..ndx + 1, "#");
-                    if Self::should_evaluate(&new_line, &self.groups) {
-                        queue.push_back(new_line);
-                    }
-
-                    let mut new_line = spring_line.clone();
-                    new_line.replace_range(ndx..ndx + 1, ".");
-                    if Self::should_evaluate(&new_line, &self.groups) {
-                        queue.push_back(new_line);
-                    }
-                }
+                return 1;
             }
         }
 
-        sum
+        // Trim leading '.' characters
+        let trimmed = self.springs.trim_start_matches('.');
+        if trimmed != self.springs {
+            return SpringLine {
+                springs: trimmed.to_string(),
+                groups: self.groups.clone(),
+            }
+            .num_arrangements(memoize);
+        }
+        let mut chars = self.springs.chars();
+        let first_char = chars.next().unwrap();
+
+        let mut groups = self.groups.iter();
+        let next_group = groups.next().unwrap();
+
+        let result = if first_char == '#' {
+            // This must match the next group
+            let mut rest = (&mut chars).take(next_group - 1);
+            if rest.any(|c| c == '.') || chars.next() == Some('#') {
+                0
+            } else {
+                let result = SpringLine {
+                    springs: chars.collect(),
+                    groups: groups.cloned().collect(),
+                }
+                .num_arrangements(memoize);
+                result
+            }
+        } else if first_char == '?' {
+            let dot_answer = SpringLine {
+                springs: chars.clone().collect(),
+                groups: self.groups.clone(),
+            }
+            .num_arrangements(memoize);
+            let spring_answer = SpringLine {
+                springs: ['#'].into_iter().chain(chars).collect(),
+                groups: self.groups.clone(),
+            }
+            .num_arrangements(memoize);
+
+            dot_answer + spring_answer
+        } else {
+            unreachable!()
+        };
+
+        memoize.insert(self.clone(), result);
+        result
     }
 
     fn unfolded_n(&self, n: usize) -> SpringLine {
         let line_str = self.line_str();
         let springs = std::iter::repeat(line_str).take(n);
-        let springs: String = itertools::intersperse(springs, "#".to_string()).collect();
+        let springs: String = itertools::intersperse(springs, "?").collect();
 
         let springs = springs.chars().collect();
 
@@ -135,34 +117,8 @@ impl SpringLine {
         SpringLine { springs, groups }
     }
 
-    fn line_str(&self) -> String {
-        self.springs.iter().collect()
-    }
-
-    fn group_str(&self) -> String {
-        self.groups
-            .iter()
-            .map(|i| i.to_string())
-            .collect::<Vec<String>>()
-            .join(",")
-    }
-
-    fn num_arrangements_unfolded(&self) -> usize {
-        let n = self.num_arrangements();
-        let u_2 = self.unfolded_n(2).num_arrangements();
-        let u_3 = self.unfolded_n(3).num_arrangements();
-        let u_4 = self.unfolded_n(4).num_arrangements();
-        let u_5 = self.unfolded_n(5).num_arrangements();
-
-        let result = n.pow(5)
-            + (4 * n.pow(3) * u_2)
-            + (3 * n.pow(2) * u_3)
-            + (3 * n * u_2.pow(2))
-            + (2 * n * u_4)
-            + (2 * u_2 * u_3)
-            + u_5;
-
-        result
+    fn line_str(&self) -> &str {
+        self.springs.as_ref()
     }
 }
 
@@ -204,7 +160,7 @@ pub fn pt1() {
     let result: usize = spring_map
         .lines
         .par_iter()
-        .map(|line| line.num_arrangements())
+        .map(|line| line.num_arrangements(&mut HashMap::new()))
         .sum();
     println!("{}", result);
 }
@@ -215,11 +171,7 @@ pub fn pt2() {
     let result: usize = spring_map
         .lines
         .par_iter()
-        .map(|line| line.num_arrangements_unfolded())
-        // .map(|res| {
-        //     println!("{}", res);
-        //     res
-        // })
+        .map(|line| line.unfolded_n(5).num_arrangements(&mut HashMap::new()))
         .sum();
     println!("{}", result);
 }
