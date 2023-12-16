@@ -1,7 +1,6 @@
-use super::*;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::convert::Infallible;
 use std::str::FromStr;
 
@@ -55,12 +54,14 @@ enum Direction {
     Right,
 }
 
+use Direction::*;
+
 fn modify_dir(tiles: &Tiles, x: i64, y: i64, dir: Direction) -> Option<(usize, usize)> {
     let (x, y) = match dir {
-        Direction::Up => (x, y - 1),
-        Direction::Down => (x, y + 1),
-        Direction::Left => (x - 1, y),
-        Direction::Right => (x + 1, y),
+        Up => (x, y - 1),
+        Down => (x, y + 1),
+        Left => (x - 1, y),
+        Right => (x + 1, y),
     };
 
     if x < 0 || y < 0 || x >= tiles.width() as i64 || y >= tiles.height() as i64 {
@@ -88,10 +89,10 @@ fn follow_light_beam_once(tiles: &Tiles, light: Light) -> HashSet<Light> {
         }
         '/' => {
             let new_dir = match light.direction {
-                Direction::Up => Direction::Right,
-                Direction::Down => Direction::Left,
-                Direction::Left => Direction::Down,
-                Direction::Right => Direction::Up,
+                Up => Right,
+                Down => Left,
+                Left => Down,
+                Right => Up,
             };
             modify_dir(tiles, x, y, new_dir).and_then(|pos| {
                 results.insert(Light {
@@ -103,10 +104,10 @@ fn follow_light_beam_once(tiles: &Tiles, light: Light) -> HashSet<Light> {
         }
         '\\' => {
             let new_dir = match light.direction {
-                Direction::Up => Direction::Left,
-                Direction::Down => Direction::Right,
-                Direction::Left => Direction::Up,
-                Direction::Right => Direction::Down,
+                Up => Left,
+                Down => Right,
+                Left => Up,
+                Right => Down,
             };
             modify_dir(tiles, x, y, new_dir).and_then(|pos| {
                 results.insert(Light {
@@ -118,7 +119,7 @@ fn follow_light_beam_once(tiles: &Tiles, light: Light) -> HashSet<Light> {
         }
         '|' => {
             match light.direction {
-                Direction::Up | Direction::Down => {
+                Up | Down => {
                     modify_dir(tiles, x, y, light.direction).and_then(|pos| {
                         results.insert(Light {
                             pos,
@@ -127,18 +128,15 @@ fn follow_light_beam_once(tiles: &Tiles, light: Light) -> HashSet<Light> {
                         Some(())
                     });
                 }
-                Direction::Left | Direction::Right => {
-                    modify_dir(tiles, x, y, Direction::Up).and_then(|pos| {
-                        results.insert(Light {
-                            pos,
-                            direction: Direction::Up,
-                        });
+                Left | Right => {
+                    modify_dir(tiles, x, y, Up).and_then(|pos| {
+                        results.insert(Light { pos, direction: Up });
                         Some(())
                     });
-                    modify_dir(tiles, x, y, Direction::Down).and_then(|pos| {
+                    modify_dir(tiles, x, y, Down).and_then(|pos| {
                         results.insert(Light {
                             pos,
-                            direction: Direction::Down,
+                            direction: Down,
                         });
                         Some(())
                     });
@@ -146,7 +144,7 @@ fn follow_light_beam_once(tiles: &Tiles, light: Light) -> HashSet<Light> {
             };
         }
         '-' => match light.direction {
-            Direction::Right | Direction::Left => {
+            Right | Left => {
                 modify_dir(tiles, x, y, light.direction).and_then(|pos| {
                     results.insert(Light {
                         pos,
@@ -155,18 +153,18 @@ fn follow_light_beam_once(tiles: &Tiles, light: Light) -> HashSet<Light> {
                     Some(())
                 });
             }
-            Direction::Up | Direction::Down => {
-                modify_dir(tiles, x, y, Direction::Left).and_then(|pos| {
+            Up | Down => {
+                modify_dir(tiles, x, y, Left).and_then(|pos| {
                     results.insert(Light {
                         pos,
-                        direction: Direction::Left,
+                        direction: Left,
                     });
                     Some(())
                 });
-                modify_dir(tiles, x, y, Direction::Right).and_then(|pos| {
+                modify_dir(tiles, x, y, Right).and_then(|pos| {
                     results.insert(Light {
                         pos,
-                        direction: Direction::Right,
+                        direction: Right,
                     });
                     Some(())
                 });
@@ -195,13 +193,12 @@ fn get_energized(tiles: &Tiles, starting_light: Light) -> HashSet<(usize, usize)
         }
         visited.insert(light);
 
-        let new_lights = follow_light_beam_once(tiles, light);
-
-        for new_light in &new_lights {
-            to_visit.push_back(*new_light);
-        }
-
-        occupied_tiles.extend(new_lights.iter().map(|l| l.pos));
+        follow_light_beam_once(tiles, light)
+            .into_iter()
+            .for_each(|light| {
+                to_visit.push_back(light);
+                occupied_tiles.insert(light.pos);
+            });
     }
 
     occupied_tiles
@@ -212,7 +209,7 @@ pub fn pt1() {
 
     let starter_light = Light {
         pos: (0, 0),
-        direction: Direction::Right,
+        direction: Right,
     };
     let result: usize = get_energized(&tiles, starter_light).into_iter().count();
 
@@ -229,7 +226,7 @@ pub fn pt2() {
                 &tiles,
                 Light {
                     pos: (x, 0),
-                    direction: Direction::Down,
+                    direction: Down,
                 },
             )
             .into_iter()
@@ -241,7 +238,7 @@ pub fn pt2() {
                 &tiles,
                 Light {
                     pos: (x, tiles.height() - 1),
-                    direction: Direction::Up,
+                    direction: Up,
                 },
             )
             .into_iter()
@@ -255,7 +252,7 @@ pub fn pt2() {
                 &tiles,
                 Light {
                     pos: (0, y),
-                    direction: Direction::Right,
+                    direction: Right,
                 },
             )
             .into_iter()
@@ -267,7 +264,7 @@ pub fn pt2() {
                 &tiles,
                 Light {
                     pos: (tiles.width() - 1, y),
-                    direction: Direction::Left,
+                    direction: Left,
                 },
             )
             .into_iter()

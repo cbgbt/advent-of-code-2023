@@ -73,12 +73,11 @@ impl SpringLine {
             if rest.any(|c| c == '.') || chars.next() == Some('#') {
                 0
             } else {
-                let result = SpringLine {
+                SpringLine {
                     springs: chars.collect(),
                     groups: groups.cloned().collect(),
                 }
-                .num_arrangements(memoize);
-                result
+                .num_arrangements(memoize)
             }
         } else if first_char == '?' {
             let dot_answer = SpringLine {
