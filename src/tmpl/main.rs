@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 mod pt1;
 mod pt2;
 
