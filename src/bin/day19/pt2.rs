@@ -1,8 +1,4 @@
-use itertools::Itertools;
-use num::iter::{Range, RangeInclusive};
-use range_ext::intersect::Intersect;
-use rayon::prelude::*;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::str::FromStr;
 
@@ -47,7 +43,7 @@ struct Condition {
 impl Condition {
     fn invert(self) -> Condition {
         let (val, oper) = match self.oper {
-            '>' => (u64::min(self.val + 1, 4000), '<'),
+            '>' => (u64::min(self.val + 1, 4001), '<'),
             '<' => (u64::max(self.val - 1, 0), '>'),
             _ => panic!(),
         };
