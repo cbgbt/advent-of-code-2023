@@ -147,7 +147,7 @@ fn time_to_low(
                 .iter()
                 .map(|submod| time_to_high(modules, pointers, submod));
 
-            lcm(high_times.clone())
+            lcm(high_times)
         }
         FlipFlop => {
             let pointer = &pointers[target.name.as_str()]
@@ -171,11 +171,10 @@ fn time_to_high(
     match target.kind {
         Conjunction => {
             let submods = &pointers[target.name.as_str()];
-            let to_high = submods
+            submods
                 .iter()
                 .map(|submod| time_to_high(modules, pointers, submod))
-                .sum();
-            to_high
+                .sum()
         }
         FlipFlop => {
             let pointer = &pointers[target.name.as_str()]
